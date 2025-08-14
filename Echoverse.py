@@ -1,5 +1,5 @@
-# EchoVerse Pro - AI-Powered Audiobook Creator with IBM Granite
-# Proper IBM Granite 3B Code Instruct Implementation
+# EchoVerse Pro - Premium AI-Powered Audiobook Creator with IBM Granite
+# Ultra-Modern UI/UX with Professional Design
 
 import subprocess
 import sys
@@ -19,8 +19,8 @@ def install_packages():
         'requests>=2.31.0',
         'huggingface-hub>=0.20.0',
         'tokenizers>=0.15.0',
-        'sentencepiece>=0.1.99',  # Required for some tokenizers
-        'protobuf>=3.20.0'  # Required for tokenizers
+        'sentencepiece>=0.1.99',
+        'protobuf>=3.20.0'
     ]
 
     print("🚀 Installing packages for IBM Granite integration...")
@@ -31,7 +31,6 @@ def install_packages():
         except Exception as e:
             print(f"❌ Failed to install {package}: {e}")
 
-# Install packages
 install_packages()
 
 # ==================== IMPORTS ====================
@@ -47,7 +46,6 @@ import uuid
 from datetime import datetime
 import logging
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -58,12 +56,8 @@ class IBMGraniteRewriter:
         self.tokenizer = None
         self.model_loaded = False
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # Use the correct IBM Granite model
         self.model_name = "ibm-granite/granite-3b-code-instruct"
-        # Backup model if Granite fails
         self.backup_model_name = "microsoft/DialoGPT-medium"
-        
         self.generation_config = None
         self.translator = GoogleTranslator(source='auto', target='en')
         
@@ -81,21 +75,18 @@ class IBMGraniteRewriter:
             print(f"🔥 Loading {model_to_load}...")
             print("📦 This may take several minutes on first run...")
             
-            # Load tokenizer with proper settings
             self.tokenizer = AutoTokenizer.from_pretrained(
                 model_to_load,
                 trust_remote_code=True,
                 padding_side="left"
             )
             
-            # Set special tokens
             if self.tokenizer.pad_token is None:
                 if self.tokenizer.eos_token:
                     self.tokenizer.pad_token = self.tokenizer.eos_token
                 else:
                     self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
             
-            # Load model with optimized settings
             model_kwargs = {
                 'trust_remote_code': True,
                 'torch_dtype': torch.float16 if self.device == "cuda" else torch.float32,
@@ -103,16 +94,11 @@ class IBMGraniteRewriter:
                 'device_map': 'auto' if self.device == "cuda" else None
             }
             
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_to_load,
-                **model_kwargs
-            )
+            self.model = AutoModelForCausalLM.from_pretrained(model_to_load, **model_kwargs)
             
-            # Move to device if not using device_map
             if self.device == "cpu":
                 self.model = self.model.to(self.device)
             
-            # Set up generation configuration
             self.generation_config = GenerationConfig(
                 max_new_tokens=300,
                 temperature=0.7,
@@ -127,7 +113,6 @@ class IBMGraniteRewriter:
             
             self.model_loaded = True
             print(f"✅ Model loaded successfully: {model_to_load}")
-            print(f"🎯 Device: {self.device}")
             return True
             
         except Exception as e:
@@ -150,7 +135,6 @@ class IBMGraniteRewriter:
         
         instruction = tone_instructions.get(tone, tone_instructions['neutral'])
         
-        # Format for IBM Granite (instruction-following format)
         prompt = f"""### Instruction:
 {instruction}
 
@@ -164,17 +148,13 @@ class IBMGraniteRewriter:
     def extract_response(self, generated_text, original_prompt):
         """Extract the response from generated text"""
         try:
-            # Split by the response marker
             if "### Response:" in generated_text:
                 response = generated_text.split("### Response:")[-1].strip()
             else:
-                # Fallback: remove the original prompt
                 response = generated_text.replace(original_prompt, "").strip()
             
-            # Clean up the response
             response = response.replace("### Instruction:", "").replace("### Input:", "").strip()
             
-            # If response is too short or empty, return original
             if len(response) < 20:
                 return None
                 
@@ -189,20 +169,16 @@ class IBMGraniteRewriter:
         if not text or len(text.strip()) < 5:
             return "Please provide more text to process."
         
-        # Load model if not already loaded
         if not self.model_loaded:
             if not self.load_model():
                 return self.fallback_rewrite(text, tone)
         
         try:
-            # Limit input length to prevent memory issues
             if len(text) > 2000:
                 text = text[:2000] + "..."
             
-            # Create proper prompt for Granite
             prompt = self.create_granite_prompt(text, tone)
             
-            # Tokenize input
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
@@ -211,22 +187,17 @@ class IBMGraniteRewriter:
                 max_length=1024
             )
             
-            # Move inputs to device
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
             
             print(f"🧠 Generating with IBM Granite ({tone} tone)...")
             
-            # Generate with proper settings
             with torch.no_grad():
                 outputs = self.model.generate(
                     **inputs,
                     generation_config=self.generation_config
                 )
             
-            # Decode the response
             generated_text = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Extract the actual response
             enhanced_text = self.extract_response(generated_text, prompt)
             
             if enhanced_text and len(enhanced_text) > 20:
@@ -236,7 +207,6 @@ class IBMGraniteRewriter:
                 print("⚠️ Granite output too short, using fallback...")
                 result = self.fallback_rewrite(text, tone)
             
-            # Translate if needed
             if target_language != 'en':
                 try:
                     self.translator.target = target_language
@@ -294,13 +264,12 @@ class AudioGenerator:
             )
             temp_file.close()
 
-            # Generate TTS with enhanced settings
             tts = gTTS(
                 text=text,
                 lang=language,
                 slow=slow,
                 lang_check=False,
-                tld='com'  # Use .com for better voice quality
+                tld='com'
             )
             
             tts.save(temp_file.name)
@@ -308,7 +277,6 @@ class AudioGenerator:
             
         except Exception as e:
             print(f"Audio generation error: {e}")
-            # Try with English as fallback
             if language != 'en':
                 return self.generate_audio(text, 'en', slow)
             return None
@@ -318,7 +286,6 @@ print("🔧 Initializing IBM Granite EchoVerse...")
 granite_rewriter = IBMGraniteRewriter()
 audio_generator = AudioGenerator()
 
-# Pre-load the model
 print("🤖 Pre-loading IBM Granite model...")
 model_loaded = granite_rewriter.load_model()
 
@@ -328,7 +295,6 @@ def process_audiobook(text_input, file_input, tone, target_language, slow_speech
     
     progress(0.1, desc="📝 Processing input...")
     
-    # Handle input
     if file_input is not None:
         try:
             with open(file_input.name, 'r', encoding='utf-8') as f:
@@ -347,13 +313,9 @@ def process_audiobook(text_input, file_input, tone, target_language, slow_speech
     detected_lang = audio_generator.detect_language(text)
     
     progress(0.4, desc="🧠 Enhancing with IBM Granite AI...")
-    
-    # Use IBM Granite for text enhancement
     enhanced_text = granite_rewriter.rewrite_text(text, tone, target_language)
     
     progress(0.7, desc="🎵 Generating premium audio...")
-    
-    # Generate audio
     audio_file = audio_generator.generate_audio(enhanced_text, target_language, slow_speech)
     
     progress(1.0, desc="✅ Complete!")
@@ -369,160 +331,818 @@ def clear_interface():
     """Clear all fields"""
     return "", None, "neutral", "en", False, "", "", "", None, None
 
-# ==================== CREATE INTERFACE ====================
-def create_granite_interface():
-    """Create the premium interface with IBM Granite branding"""
+# ==================== ULTRA-MODERN INTERFACE ====================
+def create_ultra_modern_interface():
+    """Create ultra-modern professional interface with sidebar controls"""
     
-    css = """
+    # Ultra-modern CSS with professional color scheme
+    ultra_modern_css = """
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    :root {
+        --primary: #6366f1;
+        --primary-light: #818cf8;
+        --primary-dark: #4f46e5;
+        --secondary: #10b981;
+        --accent: #f59e0b;
+        --danger: #ef4444;
+        --warning: #f97316;
+        --success: #22c55e;
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-tertiary: #334155;
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --text-muted: #64748b;
+        --border: rgba(148, 163, 184, 0.2);
+        --glass: rgba(15, 23, 42, 0.8);
+        --glass-light: rgba(30, 41, 59, 0.6);
+        --shadow-xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        --shadow-2xl: 0 35px 60px -12px rgba(0, 0, 0, 0.9);
+        --glow: 0 0 20px rgba(99, 102, 241, 0.3);
+        --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        --gradient-accent: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    * {
+        box-sizing: border-box;
+    }
+    
     .gradio-container {
-        background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 50%, #581c87 100%);
-        font-family: 'Arial', sans-serif;
+        background: var(--bg-primary) !important;
+        color: var(--text-primary) !important;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+        min-height: 100vh !important;
+        overflow-x: hidden !important;
     }
+    
+    /* Sidebar Styling */
+    .sidebar {
+        background: var(--glass) !important;
+        backdrop-filter: blur(20px) saturate(180%) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 24px !important;
+        padding: 28px !important;
+        box-shadow: var(--shadow-xl) !important;
+        position: sticky !important;
+        top: 20px !important;
+        height: fit-content !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    .sidebar:hover {
+        transform: translateY(-4px) !important;
+        box-shadow: var(--shadow-2xl) !important;
+        border-color: var(--primary-light) !important;
+    }
+    
+    /* Main Content Area */
+    .main-content {
+        background: var(--glass-light) !important;
+        backdrop-filter: blur(16px) saturate(180%) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 24px !important;
+        padding: 32px !important;
+        box-shadow: var(--shadow-xl) !important;
+        transition: all 0.4s ease !important;
+    }
+    
+    .main-content:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: var(--shadow-2xl) !important;
+    }
+    
+    /* Enhanced Buttons */
     .gr-button-primary {
-        background: linear-gradient(90deg, #dc2626, #ea580c) !important;
+        background: var(--gradient-primary) !important;
         border: none !important;
-        border-radius: 20px !important;
-        font-weight: bold !important;
-        font-size: 16px !important;
-        padding: 12px 24px !important;
-        box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3) !important;
-    }
-    .gr-panel {
-        background: rgba(255, 255, 255, 0.1) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 16px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        font-weight: 600 !important;
+        font-size: 16px !important;
+        padding: 16px 32px !important;
+        color: white !important;
+        text-transform: none !important;
+        letter-spacing: 0.5px !important;
+        box-shadow: var(--glow), 0 8px 25px rgba(99, 102, 241, 0.4) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        position: relative !important;
+        overflow: hidden !important;
+    }
+    
+    .gr-button-primary:hover {
+        transform: translateY(-3px) scale(1.02) !important;
+        box-shadow: var(--glow), 0 12px 35px rgba(99, 102, 241, 0.6) !important;
+    }
+    
+    .gr-button-primary::before {
+        content: '' !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: -100% !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent) !important;
+        transition: left 0.5s !important;
+    }
+    
+    .gr-button-primary:hover::before {
+        left: 100% !important;
+    }
+    
+    .gr-button-secondary {
+        background: var(--glass) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+        padding: 12px 24px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .gr-button-secondary:hover {
+        background: var(--glass-light) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+        border-color: var(--primary-light) !important;
+    }
+    
+    /* Enhanced Form Elements */
+    .gr-textbox, .gr-dropdown, .gr-radio {
+        background: var(--glass) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        color: var(--text-primary) !important;
+        font-size: 15px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .gr-textbox:focus, .gr-dropdown:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+        outline: none !important;
+    }
+    
+    .gr-file {
+        border: 2px dashed var(--border) !important;
+        border-radius: 16px !important;
+        background: var(--glass) !important;
+        backdrop-filter: blur(10px) !important;
+        transition: all 0.3s ease !important;
+        padding: 24px !important;
+        text-align: center !important;
+    }
+    
+    .gr-file:hover {
+        border-color: var(--primary) !important;
+        background: var(--glass-light) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    /* Status Cards */
+    .status-success {
+        background: var(--gradient-success) !important;
+        color: white !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        font-weight: 500 !important;
+        box-shadow: 0 8px 25px rgba(17, 153, 142, 0.3) !important;
+        border: none !important;
+    }
+    
+    .status-error {
+        background: var(--gradient-secondary) !important;
+        color: white !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        font-weight: 500 !important;
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3) !important;
+        border: none !important;
+    }
+    
+    /* Text Comparison Cards */
+    .text-card {
+        background: var(--glass) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 20px !important;
+        padding: 24px !important;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4) !important;
+        transition: all 0.4s ease !important;
+        height: 100% !important;
+    }
+    
+    .text-card:hover {
+        transform: translateY(-4px) !important;
+        border-color: var(--primary-light) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+    }
+    
+    /* Audio Section */
+    .audio-section {
+        background: var(--gradient-accent) !important;
+        border-radius: 24px !important;
+        padding: 32px !important;
+        text-align: center !important;
+        color: white !important;
+        box-shadow: 0 15px 35px rgba(79, 172, 254, 0.3) !important;
+        margin: 32px 0 !important;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px !important;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: var(--bg-secondary) !important;
+        border-radius: 4px !important;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary) !important;
+        border-radius: 4px !important;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-light) !important;
+    }
+    
+    /* Animation Classes */
+    .fade-in {
+        animation: fadeIn 0.8s ease-out !important;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .slide-in {
+        animation: slideIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateX(-20px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    
+    /* Radio Button Enhancements */
+    .gr-radio label {
+        background: var(--glass) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        padding: 12px 16px !important;
+        margin: 4px 0 !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .gr-radio label:hover {
+        background: var(--glass-light) !important;
+        border-color: var(--primary) !important;
+        transform: translateX(4px) !important;
+    }
+    
+    /* Checkbox Enhancements */
+    .gr-checkbox label {
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Label Styling */
+    .gr-block label {
+        color: var(--text-secondary) !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    /* Progress Bar */
+    .progress {
+        background: var(--gradient-primary) !important;
+        border-radius: 8px !important;
+        box-shadow: var(--glow) !important;
+    }
+    
+    /* Modal/Dialog Enhancements */
+    .gr-modal {
+        background: var(--glass) !important;
+        backdrop-filter: blur(20px) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 20px !important;
+        color: var(--text-primary) !important;
     }
     """
     
-    with gr.Blocks(css=css, title="EchoVerse - IBM Granite AI Audiobooks") as interface:
+    with gr.Blocks(
+        css=ultra_modern_css,
+        title="EchoVerse Pro - IBM Granite AI Audiobooks",
+        theme=gr.themes.Glass()
+    ) as interface:
         
-        # Header
+        # Ultra-Modern Header
         gr.HTML("""
-        <div style="text-align: center; padding: 40px; 
-                    background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
-                    border-radius: 20px; margin-bottom: 30px; 
-                    box-shadow: 0 20px 40px rgba(220, 38, 38, 0.3);">
-            <h1 style="color: white; font-size: 3.5em; margin-bottom: 15px; text-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-                🎧 EchoVerse Pro
-            </h1>
-            <h2 style="color: white; font-size: 1.8em; margin-bottom: 10px; opacity: 0.95;">
-                Powered by IBM Granite 3B AI
-            </h2>
-            <p style="color: white; font-size: 1.2em; opacity: 0.9;">
-                🧠 Advanced AI Text Enhancement • 🌍 30+ Languages • 🎨 6 Emotional Tones
-            </p>
-            <div style="background: rgba(255,255,255,0.2); padding: 12px; border-radius: 12px; margin-top: 15px;">
-                <p style="color: white; margin: 0; font-size: 1em;">
-                    ⚡ Real IBM Granite AI Processing • 🎵 Premium Audio Quality • 📱 Modern Interface
+        <div class="fade-in" style="text-align: center; padding: 60px 40px; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 60%, #667eea 100%);
+                    border-radius: 32px; margin-bottom: 40px; 
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+                    position: relative; overflow: hidden;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                        background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1000 1000\"><defs><radialGradient id=\"a\"><stop offset=\"0%\" style=\"stop-color:rgba(255,255,255,0.1)\"/><stop offset=\"100%\" style=\"stop-color:rgba(255,255,255,0)\"/></radialGradient></defs><circle cx=\"200\" cy=\"200\" r=\"180\" fill=\"url(%23a)\"/><circle cx=\"800\" cy=\"300\" r=\"120\" fill=\"url(%23a)\"/><circle cx=\"400\" cy=\"700\" r=\"150\" fill=\"url(%23a)\"/></svg>');
+                        opacity: 0.6;"></div>
+            <div style="position: relative; z-index: 2;">
+                <h1 style="color: white; font-size: 4.5em; margin-bottom: 20px; font-weight: 800;
+                           text-shadow: 0 8px 16px rgba(0,0,0,0.4); letter-spacing: -2px;">
+                    🎧 EchoVerse Pro
+                </h1>
+                <div style="background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+                           border-radius: 20px; padding: 20px; margin: 20px auto; max-width: 600px;
+                           border: 1px solid rgba(255,255,255,0.2);">
+                    <h2 style="color: white; font-size: 2em; margin-bottom: 15px; font-weight: 600;">
+                        Powered by IBM Granite 3B AI
+                    </h2>
+                    <p style="color: rgba(255,255,255,0.95); font-size: 1.3em; margin: 0; font-weight: 400;">
+                        🧠 Advanced Neural Text Enhancement • 🌍 30+ Languages • 🎨 6 Emotional Tones
+                    </p>
+                </div>
+                <div style="display: flex; justify-content: center; gap: 30px; margin-top: 30px; flex-wrap: wrap;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; backdrop-filter: blur(5px);">
+                        <span style="color: white; font-weight: 600;">⚡ Real-time AI Processing</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; backdrop-filter: blur(5px);">
+                        <span style="color: white; font-weight: 600;">🎵 Premium Audio Quality</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; backdrop-filter: blur(5px);">
+                        <span style="color: white; font-weight: 600;">🚀 Ultra-Modern Interface</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """)
+        
+        # Main Layout with Sidebar
+        with gr.Row(equal_height=True):
+            # Left Sidebar - Controls
+            with gr.Column(scale=1, elem_classes=["sidebar", "slide-in"]):
+                
+                # AI Configuration Section
+                gr.HTML("""
+                <div style="text-align: center; margin-bottom: 28px;">
+                    <h2 style="color: #f8fafc; font-size: 1.8em; font-weight: 700; margin: 0;
+                               text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                        🎛️ AI Controls
+                    </h2>
+                    <p style="color: #cbd5e1; margin: 8px 0 0 0; font-size: 0.95em;">
+                        Configure your audiobook transformation
+                    </p>
+                </div>
+                """)
+                
+                # Emotional Tone Selection
+                gr.HTML("""
+                <div style="margin-bottom: 24px;">
+                    <h3 style="color: #e2e8f0; font-size: 1.2em; font-weight: 600; margin-bottom: 12px;
+                               display: flex; align-items: center; gap: 8px;">
+                        🎭 <span>Emotional Tone</span>
+                    </h3>
+                </div>
+                """)
+                
+                tone = gr.Radio(
+                    choices=[
+                        ("⚖️ Neutral - Professional & Balanced", "neutral"),
+                        ("⚡ Suspenseful - Dramatic & Thrilling", "suspenseful"), 
+                        ("⭐ Inspiring - Motivational & Uplifting", "inspiring"),
+                        ("💕 Romantic - Warm & Emotional", "romantic"),
+                        ("🔮 Mysterious - Enigmatic & Intriguing", "mysterious"),
+                        ("😊 Cheerful - Joyful & Optimistic", "cheerful")
+                    ],
+                    value="neutral",
+                    label="Select AI Processing Tone",
+                    show_label=False,
+                    elem_classes=["tone-selector"]
+                )
+                
+                gr.HTML("<div style='height: 20px;'></div>")
+                
+                # Language Selection
+                gr.HTML("""
+                <div style="margin-bottom: 16px;">
+                    <h3 style="color: #e2e8f0; font-size: 1.2em; font-weight: 600; margin-bottom: 12px;
+                               display: flex; align-items: center; gap: 8px;">
+                        🌍 <span>Audio Language</span>
+                    </h3>
+                </div>
+                """)
+                
+                target_language = gr.Dropdown(
+                    choices=[
+                        ("🇺🇸 English", "en"), 
+                        ("🇪🇸 Spanish", "es"), 
+                        ("🇫🇷 French", "fr"),
+                        ("🇩🇪 German", "de"), 
+                        ("🇮🇹 Italian", "it"), 
+                        ("🇵🇹 Portuguese", "pt"),
+                        ("🇷🇺 Russian", "ru"), 
+                        ("🇯🇵 Japanese", "ja"), 
+                        ("🇰🇷 Korean", "ko"),
+                        ("🇨🇳 Chinese", "zh"), 
+                        ("🇮🇳 Hindi (हिन्दी)", "hi"), 
+                        ("🇮🇳 Bengali (বাংলা)", "bn"),
+                        ("🇮🇳 Tamil (தமிழ்)", "ta"), 
+                        ("🇮🇳 Telugu (తెలుగు)", "te"), 
+                        ("🇮🇳 Marathi (मराठी)", "mr"),
+                        ("🇮🇳 Gujarati (ગુજરાતી)", "gu"),
+                        ("🇮🇳 Kannada (ಕನ್ನಡ)", "kn"),
+                        ("🇮🇳 Malayalam (മലയാളം)", "ml"),
+                        ("🇮🇳 Punjabi (ਪੰਜਾਬੀ)", "pa"),
+                        ("🇮🇳 Urdu (اردو)", "ur")
+                    ],
+                    value="en",
+                    label="Target Audio Language",
+                    show_label=False,
+                    elem_classes=["language-dropdown"]
+                )
+                
+                gr.HTML("<div style='height: 20px;'></div>")
+                
+                # Audio Settings
+                gr.HTML("""
+                <div style="margin-bottom: 16px;">
+                    <h3 style="color: #e2e8f0; font-size: 1.2em; font-weight: 600; margin-bottom: 12px;
+                               display: flex; align-items: center; gap: 8px;">
+                        🎚️ <span>Audio Settings</span>
+                    </h3>
+                </div>
+                """)
+                
+                slow_speech = gr.Checkbox(
+                    label="🐌 Enable Slow Speech Mode",
+                    value=False,
+                    info="Better clarity for learning",
+                    elem_classes=["audio-checkbox"]
+                )
+                
+                gr.HTML("<div style='height: 32px;'></div>")
+                
+                # Action Buttons
+                process_btn = gr.Button(
+                    "🧠 Transform with IBM Granite AI",
+                    variant="primary",
+                    size="lg",
+                    elem_classes=["transform-button"]
+                )
+                
+                gr.HTML("<div style='height: 12px;'></div>")
+                
+                clear_btn = gr.Button(
+                    "🗑️ Clear All Fields",
+                    variant="secondary",
+                    size="lg",
+                    elem_classes=["clear-button"]
+                )
+                
+                gr.HTML("<div style='height: 32px;'></div>")
+                
+                # AI Model Status
+                if model_loaded:
+                    gr.HTML("""
+                    <div style="background: linear-gradient(135deg, #22c55e, #16a34a); 
+                               padding: 20px; border-radius: 16px; text-align: center;
+                               box-shadow: 0 8px 25px rgba(34, 197, 94, 0.3);
+                               border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div style="font-size: 2em; margin-bottom: 8px;">✅</div>
+                        <h4 style="color: white; font-weight: 600; margin-bottom: 8px; font-size: 1.1em;">
+                            IBM Granite AI Ready
+                        </h4>
+                        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.85em;">
+                            Advanced text enhancement operational
+                        </p>
+                    </div>
+                    """)
+                else:
+                    gr.HTML("""
+                    <div style="background: linear-gradient(135deg, #f97316, #ea580c); 
+                               padding: 20px; border-radius: 16px; text-align: center;
+                               box-shadow: 0 8px 25px rgba(249, 115, 22, 0.3);
+                               border: 1px solid rgba(249, 115, 22, 0.2);">
+                        <div style="font-size: 2em; margin-bottom: 8px;">⚠️</div>
+                        <h4 style="color: white; font-weight: 600; margin-bottom: 8px; font-size: 1.1em;">
+                            AI Loading...
+                        </h4>
+                        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.85em;">
+                            Model will initialize on first use
+                        </p>
+                    </div>
+                    """)
+            
+            # Main Content Area
+            with gr.Column(scale=2, elem_classes=["main-content", "fade-in"]):
+                
+                # Text Input Section
+                gr.HTML("""
+                <div style="margin-bottom: 28px;">
+                    <h2 style="color: #f8fafc; font-size: 2em; font-weight: 700; margin-bottom: 8px;
+                               display: flex; align-items: center; gap: 12px;">
+                        📝 <span>Content Input</span>
+                    </h2>
+                    <p style="color: #cbd5e1; margin: 0; font-size: 1.05em;">
+                        Provide your text content for AI-powered audiobook transformation
+                    </p>
+                </div>
+                """)
+                
+                text_input = gr.Textbox(
+                    label="Enter your text content",
+                    placeholder="✍️ Paste your story, article, book chapter, or any text content here...\n\nThe IBM Granite AI will enhance your text with the selected emotional tone and convert it into a natural-sounding audiobook in your chosen language.\n\nSupports up to 5000 characters for optimal processing speed.",
+                    lines=12,
+                    max_lines=20,
+                    show_label=False,
+                    elem_classes=["main-textbox"]
+                )
+                
+                gr.HTML("<div style='height: 20px;'></div>")
+                
+                # File Upload
+                gr.HTML("""
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <h3 style="color: #e2e8f0; font-size: 1.3em; font-weight: 600; margin: 0;">
+                        📁 Or Upload Text File
+                    </h3>
+                    <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 0.9em;">
+                        Supports .txt files • Automatically processes content
+                    </p>
+                </div>
+                """)
+                
+                file_input = gr.File(
+                    label="Upload text file",
+                    file_types=[".txt"],
+                    show_label=False,
+                    elem_classes=["file-upload"]
+                )
+                
+                gr.HTML("<div style='height: 32px;'></div>")
+                
+                # Processing Status
+                status_output = gr.Textbox(
+                    label="🔥 IBM Granite AI Status",
+                    interactive=False,
+                    elem_classes=["status-output"]
+                )
+        
+        # Results Section
+        gr.HTML("""
+        <div class="fade-in" style="margin: 40px 0;">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h2 style="color: #f8fafc; font-size: 2.2em; font-weight: 700; margin-bottom: 12px;
+                           display: flex; align-items: center; justify-content: center; gap: 16px;">
+                    📊 <span>AI Processing Results</span>
+                </h2>
+                <p style="color: #cbd5e1; margin: 0; font-size: 1.1em;">
+                    Compare original text with IBM Granite AI enhancement
                 </p>
             </div>
         </div>
         """)
         
-        with gr.Row():
-            with gr.Column(scale=2):
-                gr.Markdown("## 📝 **Text Input**")
-                text_input = gr.Textbox(
-                    label="Enter your text",
-                    placeholder="Paste your story, article, or content here for IBM Granite AI enhancement...",
-                    lines=8,
-                    max_lines=15
-                )
+        # Text Comparison Cards
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=1, elem_classes=["text-card"]):
+                gr.HTML("""
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="color: #f1f5f9; font-size: 1.4em; font-weight: 600; margin: 0;
+                               display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        📄 <span>Original Text</span>
+                    </h3>
+                    <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 0.9em;">
+                        Your input content as provided
+                    </p>
+                </div>
+                """)
                 
-                file_input = gr.File(
-                    label="📁 Upload text file (.txt)",
-                    file_types=[".txt"]
+                original_display = gr.Textbox(
+                    lines=8,
+                    interactive=False,
+                    show_label=False,
+                    placeholder="Your original text will appear here after processing...",
+                    elem_classes=["result-textbox"]
                 )
             
-            with gr.Column(scale=1):
-                gr.Markdown("## 🎨 **AI Configuration**")
+            with gr.Column(scale=1, elem_classes=["text-card"]):
+                gr.HTML("""
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h3 style="color: #f1f5f9; font-size: 1.4em; font-weight: 600; margin: 0;
+                               display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        🧠 <span>IBM Granite Enhanced</span>
+                    </h3>
+                    <p style="color: #94a3b8; margin: 8px 0 0 0; font-size: 0.9em;">
+                        AI-enhanced with emotional tone
+                    </p>
+                </div>
+                """)
                 
-                tone = gr.Radio(
-                    choices=[
-                        "neutral", "suspenseful", "inspiring",
-                        "romantic", "mysterious", "cheerful"
-                    ],
-                    value="neutral",
-                    label="🎭 Emotional Tone for AI"
-                )
-                
-                target_language = gr.Dropdown(
-                    choices=[
-                        ("🇺🇸 English", "en"), ("🇪🇸 Spanish", "es"), ("🇫🇷 French", "fr"),
-                        ("🇩🇪 German", "de"), ("🇮🇹 Italian", "it"), ("🇵🇹 Portuguese", "pt"),
-                        ("🇷🇺 Russian", "ru"), ("🇯🇵 Japanese", "ja"), ("🇰🇷 Korean", "ko"),
-                        ("🇨🇳 Chinese", "zh"), ("🇮🇳 Hindi", "hi"), ("🇮🇳 Bengali", "bn"),
-                        ("🇮🇳 Tamil", "ta"), ("🇮🇳 Telugu", "te"), ("🇮🇳 Marathi", "mr")
-                    ],
-                    value="en",
-                    label="🌍 Audio Language"
-                )
-                
-                slow_speech = gr.Checkbox(
-                    label="🐌 Slow Speech Mode",
-                    value=False
+                enhanced_display = gr.Textbox(
+                    lines=8,
+                    interactive=False,
+                    show_label=False,
+                    placeholder="AI-enhanced text with applied emotional tone will appear here...",
+                    elem_classes=["result-textbox"]
                 )
         
-        # Control buttons
-        with gr.Row():
-            process_btn = gr.Button(
-                "🧠 Transform with IBM Granite AI",
-                variant="primary",
-                size="lg"
-            )
-            clear_btn = gr.Button(
-                "🗑️ Clear All",
-                variant="secondary"
-            )
+        # Premium Audio Section
+        gr.HTML("""
+        <div class="audio-section fade-in">
+            <div style="margin-bottom: 24px;">
+                <h2 style="font-size: 2.5em; font-weight: 800; margin-bottom: 16px;
+                           display: flex; align-items: center; justify-content: center; gap: 16px;">
+                    🎵 <span>Premium Audiobook</span>
+                </h2>
+                <p style="font-size: 1.2em; opacity: 0.95; margin: 0; font-weight: 400;">
+                    High-quality, AI-enhanced narration ready for listening and download
+                </p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                        gap: 20px; margin-top: 24px;">
+                <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; backdrop-filter: blur(5px);">
+                    <div style="font-size: 1.5em; margin-bottom: 4px;">🎧</div>
+                    <div style="font-weight: 600;">Premium Quality</div>
+                    <div style="font-size: 0.9em; opacity: 0.8;">Crystal clear audio</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; backdrop-filter: blur(5px);">
+                    <div style="font-size: 1.5em; margin-bottom: 4px;">🌍</div>
+                    <div style="font-weight: 600;">Multi-Language</div>
+                    <div style="font-size: 0.9em; opacity: 0.8;">30+ languages</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; backdrop-filter: blur(5px);">
+                    <div style="font-size: 1.5em; margin-bottom: 4px;">⚡</div>
+                    <div style="font-weight: 600;">AI Enhanced</div>
+                    <div style="font-size: 0.9em; opacity: 0.8;">Emotional depth</div>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; backdrop-filter: blur(5px);">
+                    <div style="font-size: 1.5em; margin-bottom: 4px;">📥</div>
+                    <div style="font-weight: 600;">Instant Download</div>
+                    <div style="font-size: 0.9em; opacity: 0.8;">MP3 format</div>
+                </div>
+            </div>
+        </div>
+        """)
         
-        # Status
-        status_output = gr.Textbox(label="🔥 IBM Granite Status", interactive=False)
-        
-        # Results
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("### 📄 Original Text")
-                original_display = gr.Textbox(lines=6, interactive=False, show_label=False)
-            with gr.Column():
-                gr.Markdown("### 🧠 IBM Granite Enhanced")
-                enhanced_display = gr.Textbox(lines=6, interactive=False, show_label=False)
-        
-        # Audio output
-        gr.Markdown("## 🎵 **Premium Audiobook**")
-        audio_output = gr.Audio(label="🎧 Your AI-Enhanced Audiobook")
-        download_file = gr.File(label="📥 Download MP3")
-        
-        # Examples
-        gr.Examples(
-            examples=[
-                ["The old castle stood majestically on the hill, overlooking the peaceful village below.", "mysterious", "en", False],
-                ["Every challenge is an opportunity to grow stronger and wiser than before.", "inspiring", "hi", False],
-                ["The detective carefully examined the scene, knowing that one clue could solve everything.", "suspenseful", "en", True]
-            ],
-            inputs=[text_input, tone, target_language, slow_speech]
+        # Audio Player
+        audio_output = gr.Audio(
+            label="🎧 Your AI-Enhanced Audiobook",
+            elem_classes=["audio-player"]
         )
         
-        # Model status display
-        if model_loaded:
-            gr.HTML("""
-            <div style="background: linear-gradient(90deg, #059669, #0d9488); color: white; 
-                        padding: 15px; border-radius: 12px; text-align: center; margin: 20px 0;">
-                <h3>✅ IBM Granite 3B Code Instruct - LOADED & READY</h3>
-                <p>Advanced AI text enhancement is fully operational!</p>
-            </div>
-            """)
-        else:
-            gr.HTML("""
-            <div style="background: linear-gradient(90deg, #dc2626, #ea580c); color: white; 
-                        padding: 15px; border-radius: 12px; text-align: center; margin: 20px 0;">
-                <h3>⚠️ IBM Granite Model Loading...</h3>
-                <p>Using intelligent fallback processing. Model will load on first use.</p>
-            </div>
-            """)
+        download_file = gr.File(
+            label="📥 Download Premium MP3",
+            interactive=False,
+            elem_classes=["download-file"]
+        )
         
-        # Event handlers
+        # Examples Section
+        gr.HTML("""
+        <div class="fade-in" style="margin: 50px 0 30px 0;">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h2 style="color: #f8fafc; font-size: 2em; font-weight: 700; margin-bottom: 12px;
+                           display: flex; align-items: center; justify-content: center; gap: 12px;">
+                    💡 <span>Try These Examples</span>
+                </h2>
+                <p style="color: #cbd5e1; margin: 0; font-size: 1.05em;">
+                    Experience different tones and languages with our curated examples
+                </p>
+            </div>
+        </div>
+        """)
+        
+        # Premium Examples
+        example_data = [
+            [
+                "The ancient lighthouse stood majestically on the rocky cliff, its beacon cutting through the stormy night. For centuries, it had guided countless ships safely to harbor, becoming a symbol of hope for sailors around the world.",
+                "mysterious",
+                "en",
+                False
+            ],
+            [
+                "Every morning brings new possibilities and endless opportunities to grow. Believe in yourself, embrace every challenge as a stepping stone to success, and remember that your dreams are not just valid—they are inevitable with dedication and persistence.",
+                "inspiring", 
+                "hi",
+                False
+            ],
+            [
+                "The detective carefully examined the crime scene, her trained eyes catching details others missed. The victim's diary lay open on the mahogany desk, its final entry dated exactly three days ago. Something was definitely wrong with this picture.",
+                "suspenseful",
+                "en", 
+                True
+            ],
+            [
+                "In the quiet garden where roses bloomed eternal, two hearts found their rhythm in the gentle dance of love. Every whispered word carried the weight of forever, every glance held promises of tomorrow.",
+                "romantic",
+                "fr",
+                False
+            ]
+        ]
+        
+        gr.Examples(
+            examples=example_data,
+            inputs=[text_input, tone, target_language, slow_speech],
+            label="🌟 Premium Examples - Try Different Languages & Emotional Tones"
+        )
+        
+        # Feature Showcase Footer
+        gr.HTML("""
+        <div class="fade-in" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                    border-radius: 24px; padding: 40px; margin: 40px 0; 
+                    border: 1px solid rgba(148, 163, 184, 0.2);
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);">
+            <div style="text-align: center; margin-bottom: 32px;">
+                <h2 style="color: #f8fafc; font-size: 2em; font-weight: 700; margin-bottom: 16px;">
+                    ✨ Premium Features
+                </h2>
+                <p style="color: #cbd5e1; font-size: 1.1em; margin: 0;">
+                    Cutting-edge AI technology meets premium user experience
+                </p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+                        gap: 24px;">
+                <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); 
+                           padding: 28px; border-radius: 20px; text-align: center;
+                           box-shadow: 0 12px 24px rgba(99, 102, 241, 0.3);
+                           transition: transform 0.3s ease;">
+                    <div style="font-size: 3em; margin-bottom: 12px;">🧠</div>
+                    <h3 style="color: white; font-size: 1.3em; font-weight: 600; margin-bottom: 12px;">
+                        IBM Granite AI
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.95em; line-height: 1.5; margin: 0;">
+                        Advanced 3B parameter model with instruction-following capabilities for precise text enhancement
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #10b981, #059669); 
+                           padding: 28px; border-radius: 20px; text-align: center;
+                           box-shadow: 0 12px 24px rgba(16, 185, 129, 0.3);
+                           transition: transform 0.3s ease;">
+                    <div style="font-size: 3em; margin-bottom: 12px;">🌍</div>
+                    <h3 style="color: white; font-size: 1.3em; font-weight: 600; margin-bottom: 12px;">
+                        Global Language Support
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.95em; line-height: 1.5; margin: 0;">
+                        Support for 30+ languages including comprehensive Indian language coverage
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #f59e0b, #d97706); 
+                           padding: 28px; border-radius: 20px; text-align: center;
+                           box-shadow: 0 12px 24px rgba(245, 158, 11, 0.3);
+                           transition: transform 0.3s ease;">
+                    <div style="font-size: 3em; margin-bottom: 12px;">🎨</div>
+                    <h3 style="color: white; font-size: 1.3em; font-weight: 600; margin-bottom: 12px;">
+                        Emotional Intelligence
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.95em; line-height: 1.5; margin: 0;">
+                        Six distinct emotional tones for expressive storytelling and content enhancement
+                    </p>
+                </div>
+                
+                <div style="background: linear-gradient(135deg, #ef4444, #dc2626); 
+                           padding: 28px; border-radius: 20px; text-align: center;
+                           box-shadow: 0 12px 24px rgba(239, 68, 68, 0.3);
+                           transition: transform 0.3s ease;">
+                    <div style="font-size: 3em; margin-bottom: 12px;">🎵</div>
+                    <h3 style="color: white; font-size: 1.3em; font-weight: 600; margin-bottom: 12px;">
+                        Premium Audio
+                    </h3>
+                    <p style="color: rgba(255,255,255,0.9); font-size: 0.95em; line-height: 1.5; margin: 0;">
+                        High-quality Google Text-to-Speech with natural voice synthesis and clear pronunciation
+                    </p>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 32px; padding-top: 32px;
+                        border-top: 1px solid rgba(148, 163, 184, 0.2);">
+                <p style="color: #94a3b8; font-size: 1em; margin: 0; line-height: 1.6;">
+                    <strong style="color: #f8fafc;">🎧 EchoVerse Pro</strong> • 
+                    Premium AI Audiobook Creator • 
+                    Powered by IBM Granite 3B • 
+                    Built with modern web technologies
+                </p>
+                <p style="color: #64748b; font-size: 0.9em; margin: 12px 0 0 0;">
+                    Made with ❤️ for content creators, educators, and storytellers worldwide
+                </p>
+            </div>
+        </div>
+        """)
+        
+        # Event Handlers
         process_btn.click(
             fn=process_audiobook,
             inputs=[text_input, file_input, tone, target_language, slow_speech],
@@ -540,29 +1160,33 @@ def create_granite_interface():
 
 # ==================== MAIN EXECUTION ====================
 def main():
-    """Launch the IBM Granite EchoVerse application"""
-    print("\n🚀 Starting IBM Granite EchoVerse Pro...")
+    """Launch the Ultra-Modern IBM Granite EchoVerse Pro"""
+    print("\n🚀 Starting Ultra-Modern EchoVerse Pro...")
+    print("🎨 Premium UI/UX with Professional Design")
     print(f"🔥 PyTorch: {torch.__version__}")
     print(f"🔥 CUDA: {torch.cuda.is_available()}")
+    print("✨ Features: Sidebar controls • Modern color scheme • Professional layout")
     
-    # Create and launch
-    interface = create_granite_interface()
+    interface = create_ultra_modern_interface()
     
-    print("\n🌐 Launching application...")
+    print("\n🌐 Launching premium interface...")
     interface.launch(
         share=True,
-        server_name="0.0.0.0",
+        server_name="0.0.0.0", 
         show_error=True,
-        debug=False
+        debug=False,
+        favicon_path=None,
+        ssl_verify=False
     )
 
 if __name__ == "__main__":
     main()
 
 print("""
-🎉 IBM Granite EchoVerse Pro is ready!
-🧠 Using real IBM Granite 3B Code Instruct model
-🎨 6 emotional tones with advanced AI processing  
-🌍 30+ language support with premium audio
-🔗 Public link will be generated for easy access
+🎉 Ultra-Modern EchoVerse Pro is ready!
+🎨 Professional sidebar layout with premium design
+🧠 IBM Granite 3B AI for advanced text enhancement
+🌈 Modern color scheme with glass morphism effects
+📱 Fully responsive design with smooth animations
+🔗 Public sharing link will be generated automatically
 """)
